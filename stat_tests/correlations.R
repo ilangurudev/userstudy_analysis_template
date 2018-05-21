@@ -1,28 +1,40 @@
 # two-way factorial ANOVA for between-subjects design
 # this script has some summary statistics calculations removed because this is scary after
 
-datafilename="./data/key_info.csv"	# csv file name
+#removes all previous data in the workspace
+rm(list = ls())
 
-dependentVar1 = "scr30_percent"			# dependent variable 1
-dependentVar2 = "duration_main"								# dependent variable 2
+pacman::p_load(tidyverse, broom)
 
-# new function for getting column by header
-getColumnByName = function(dataframe, colName){return(dataframe[[which(colnames(dataframe) == colName)]])}
+datafilename <- "data/key_info.csv"	# csv file name
 
-df = read.csv(datafilename,header=T)   #read the data into a data frame using the header row
-df = df[complete.cases(df[, dependentVar1]),]	   # exclude rows where missing a value for the dependent variable
-df = df[complete.cases(df[, dependentVar2]),]	   # exclude rows where missing a value for the dependent variable
+# Enter name of variable 1 inside the paranthesis without quotes. 
+# Eg: quo(mode)
+dv1 <- quo(scr30_percent)
 
-dv1 = getColumnByName(df, dependentVar1)	 #create handles to the data rows we care about
-dv2 = getColumnByName(df, dependentVar2)
+# Enter name of variable 2 inside the paranthesis without quotes. 
+dv2 <- quo(duration_main)
+
+df = suppressMessages(read_csv(datafilename)) 
+
+df <- 
+  df %>% 
+  filter(!is.na(!!dv1), !is.na(!!dv2))
+
+dv_1 <- df %>% pull(!!dv1)
+dv_2 <- df %>% pull(!!dv2)
+
 
 #pearson
-cor.test(dv1, dv2, use="all.obs", method="pearson")
+message("pearson correlation test")
+cor.test(dv_1, dv_2, use="all.obs", method="pearson") %>% tidy() %>% print()
 
 #spearman
-cor.test(dv1, dv2, use="all.obs", method="spearman")
+message("spearman correlation test")
+cor.test(dv_1, dv_2, use="all.obs", method="spearman") %>% tidy() %>% print()
 
 # overview graphs
-reg1 <- lm(dv1~dv2)
-plot(dv1, dv2 ,asp=1, xlab= dependentVar1, ylab= dependentVar2)
+message("Plotting")
+reg1 <- lm(dv_2 ~ dv_1)
+plot(dv_1, dv_2 ,asp=1, xlab = as.character(dv1)[2], ylab = as.character(dv2)[2])
 abline(reg1)

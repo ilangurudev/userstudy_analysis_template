@@ -1,20 +1,28 @@
 # two-way factorial ANOVA for between-subjects design
 # this script has some summary statistics calculations removed because this is scary after
 
-datafilename="./data/key_info.csv"	# csv file name
+#removes all previous data in the workspace
+rm(list = ls())
 
-dv = "scr30_percent"			# dependent variable
-independentVariable1 = "mode"		# independent variable	 
+pacman::p_load(tidyverse, lsr, broom, PMCMR)
 
 
-# new function for getting column by header
-getColumnByName = function(dataframe, colName){return(dataframe[[which(colnames(dataframe) == colName)]])}
+datafilename="data/key_info.csv"	# csv file name
 
-df = read.csv(datafilename,header=T)   #read the data into a data frame using the header row
-df = df[complete.cases(df[, dv]),]	
-iv1 = getColumnByName(df, independentVariable1)	 #create handles to the data rows we care about
-iv1 = factor(iv1)
-outcome = getColumnByName(df, dv)
+dv = quo(scr30_percent)			# dependent variable
+iv = quo(mode)		# independent variable	 
+
+
+
+df = suppressMessages(read_csv(datafilename))    #read the data into a data frame using the header row
+
+df <- 
+  df %>% 
+  filter(!is.na(!!dv))
+
+# iv = getColumnByName(df, independentVariable1)	 #create handles to the data rows we care about
+iv_fac <- df %>% pull(!!iv) %>% factor()
+outcome <- df %>% pull(!!dv) 
 
 #create field with reversed values to help with transformations for negatively skewed distributions
 # maxOutcome = max(outcome)
@@ -43,11 +51,21 @@ outcome = getColumnByName(df, dv)
 #outcome = 1/sin(outcome)
 
 #check normality
+cat("\n")
+message("--------------------------------------------------------------------------------------")
+message("----------------------------------Test for Normality----------------------------------")
 par(mfrow=c(1,2))
 qqnorm(outcome)			#normal QQ plot (should be straight diagonal for normal)
 hist(outcome,breaks=length(outcome))	#histogram
-shapiro.test(outcome)
-ks.test(outcome, "pnorm", mean=mean(outcome), sd=sd(outcome))
+sh <- shapiro.test(outcome) %>% print()
+ks.test(outcome, "pnorm", mean=mean(outcome), sd=sd(outcome)) %>% print()
+
+if(sh$p.value < 0.1){
+  message("Normality satisfied according to Shapiro-Wilk")
+} else {
+  message("Normality NOT satisfied according to Shapiro-Wilk")
+}
+
 #Don't worry about ties warning\n"
 #
 
@@ -56,49 +74,80 @@ ks.test(outcome, "pnorm", mean=mean(outcome), sd=sd(outcome))
 # NOTE: this stupid function will crash and break R if there are unequal numbers of results in conditions
 #bartlett.test(outcome ~ independentVariable1 , data=df)
 
-# calculate means for condition cells (combinations of conditions)
-tapply(outcome, df[ , independentVariable1], mean) 
+cat("\n")
+message("--------------------------------------------------------------------------------------")
+message("------------------------------------Means and SDs------------------------------------")
+# mean overall
+cat("\n")
+message("mean overall")
+mean(outcome, na.rm = FALSE) %>% print()
 
-# calculate SD for condition cells (combinations of conditions)
-tapply(outcome, df[ , independentVariable1], sd) 
+# calculate means for condition cells (combinations of conditions)
+cat("\n")
+message("means of outcome by levels of independent variable")
+tapply(outcome, iv_fac, mean)  %>% print()
 
 # standard deviation overall
-sd(outcome, na.rm = FALSE)
+cat("\n")
+message("SD overall")
+sd(outcome, na.rm = FALSE) %>% print()
 
-# mean overall
-mean(outcome, na.rm = FALSE)
+# calculate SD for condition cells (combinations of conditions)
+cat("\n")
+message("SDs of outcome by levels of independent variable")
+tapply(outcome, iv_fac, sd)  %>% print()
 
-# ANOVA. note: missing values omitted by default for ANOVA																
-aov.out = aov(outcome ~ iv1, data=df)    #do the analysis of variance
-aov.out  		   #SHOW ANOVA MODEL
-summary(aov.out)   #SHOW ANOVA summary table
+
+
+# ANOVA. note: missing values omitted by default for ANOVA		
+cat("\n")
+message("--------------------------------------------------------------------------------------")
+message("-----------------------------------------ANOVA----------------------------------------")
+aov.out <- aov(outcome ~ iv_fac, data=df)    #do the analysis of variance
+tidy(aov.out) %>% print()
+# aov.out  		   #SHOW ANOVA MODEL
+# summary(aov.out)   #SHOW ANOVA summary table
 # don't need to worry about SS types for one-way model
 
-# give both eta squared and partial eta squared (type 1, 2, or 3 ANOVAs are same for one-way)
-#install.packages("lsr")
-library("lsr")
-etaSquared(aov.out, type = 3, anova = TRUE)	# give both eta squared and partial eta squared
+if(tidy(aov.out)$p.value[1] < 0.05){
+  cat("\n")
+  message("-----------Effect detected by ANOVA-----------")
+} else{
+  cat("\n")
+  message("-----------No evidence for effect detected by ANOVA-----------")
+}
 
+cat("\n")
+message("Analysis on the ANOVA results")
+
+# give both eta squared and partial eta squared (type 1, 2, or 3 ANOVAs are same for one-way)
+message("ETA squared")
+print(etaSquared(aov.out, type = 3, anova = TRUE))	# give both eta squared and partial eta squared
+
+message("Model tables")
 print(model.tables(aov.out,"means"), digits=4)    #report the means and the number of subjects/cell
 
-# post hoc tests
-# Bonferroni has more power for smaller number of comparisons. Tukey better for larger number of groups
-# paired t test
-pairwise.t.test(outcome, iv1, p.adj = "none", data=df) #non-corrected t test	
-# Bonferroni t
-pairwise.t.test(outcome, iv1, p.adj = "bonf", data=df) #Bonferroni corrected
-# Tukey
-TukeyHSD(aov.out) # Tukey HSD post hoc
-
 # overview graphs
-boxplot(outcome ~ iv1, data=df)
+message("Plotting...")
+par(mfrow = c(1,1))
+boxplot(outcome ~ iv_fac, data=df)
 
+cat("\n")
+message("--------------------------------------------------------------------------------------")
+message("------------------------------------post hoc tests------------------------------------")
+# Bonferroni has more power for smaller number of comparisons. Tukey better for larger number of groups
+message("paired t test")
+pairwise.t.test(outcome, iv_fac, p.adj = "none", data=df) %>% print() #non-corrected t test	
+message("Bonferroni corrected t test")
+pairwise.t.test(outcome, iv_fac, p.adj = "bonf", data=df)%>% print() #Bonferroni corrected
+message("Tukey test")
+TukeyHSD(aov.out)%>% print() # Tukey HSD post hoc
+message("Krushal test")
+kruskal.test(outcome ~ iv_fac) %>% suppressMessages() %>% print()
+message("Wilcox test")
+pairwise.wilcox.test(x = outcome, g = iv_fac, p.adj = "bonf") %>% suppressMessages() %>% print()
+message("Krushal Dunn")
+posthoc.kruskal.dunn.test(outcome, iv_fac, p.adj = "bonf") %>% suppressMessages() %>% print()
+message("Krushal nemenyi")
+posthoc.kruskal.nemenyi.test(outcome, iv_fac, p.adj = "bonf") %>% suppressMessages() %>% print()
 
-kruskal.test(outcome ~ iv1, data=df) 
-
-
-library(PMCMR)
-
-(pairwise.wilcox.test(x = outcome, g = iv1, p.adj = "bonf"))
-posthoc.kruskal.dunn.test(outcome, iv1, p.adj = "bonf")
-posthoc.kruskal.nemenyi.test(outcome, iv1, p.adj = "bonf")
