@@ -12,7 +12,7 @@ datafilename <- "data/key_info.csv"	# csv file name
 dv <- quo(scr30_percent)			# dependent variable
 iv <- quo(mode)		# independent variable	 
 
-
+norm_test_threhold <- 0.05
 
 df <- suppressMessages(read_csv(datafilename))    #read the data into a data frame using the header row
 
@@ -63,7 +63,7 @@ hist(outcome,breaks=length(outcome))	#histogram
 sh <- shapiro.test(outcome) %>% print()
 ks.test(outcome, "pnorm", mean=mean(outcome), sd=sd(outcome)) %>% print()
 
-if(sh$p.value < 0.05){
+if(sh$p.value < norm_test_threhold){
   message("Normality satisfied according to Shapiro-Wilk")
 } else {
   message("Normality NOT satisfied according to Shapiro-Wilk")
