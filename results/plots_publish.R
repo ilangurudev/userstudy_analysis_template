@@ -8,8 +8,8 @@ session_important <-
   mutate(mode_paper = fct_inorder(mode_paper))
 
 question_answer_info <- read_csv("./data/question_answers.csv")
-sample_disclosure <- read_csv("./data/sample_disclosure.csv")
-demographics <- read_csv("./data/demographics.csv")
+# sample_disclosure <- read_csv("./data/sample_disclosure.csv")
+# demographics <- read_csv("./data/demographics.csv")
 
 summary_disclosure <- 
   session_important %>%

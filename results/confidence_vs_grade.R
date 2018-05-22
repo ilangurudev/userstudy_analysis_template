@@ -23,6 +23,7 @@ iv2 <- quo(conf_lh)
 #importing
 data_exp <- suppressMessages(read_csv(data_file_name))
 
+data_exp <- data_exp %>% mutate(conf_lh = if_else(confidence_recoded == 1, "low", "high") %>% as.factor())
 
 #a chisq test that you can use for any variable. 
 #(currently considers confidence as a 3 factor variable)
