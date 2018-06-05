@@ -9,14 +9,15 @@ pacman::p_load(tidyverse, lsr, broom, PMCMR)
 
 datafilename <- "data/key_info.csv"	# csv file name
 
-dv <- quo(scr30_percent)			# dependent variable
+dv <- quo(mean_confidence)			# dependent variable
 iv <- quo(mode)		# independent variable	 
 
-
+norm_test_threhold <- 0.05
 
 df <- suppressMessages(read_csv(datafilename))    #read the data into a data frame using the header row
 
-df <- df %>% 
+df <- 
+  df %>% 
   filter(mode != 1)
 
 df <- 
@@ -26,7 +27,6 @@ df <-
 # iv = getColumnByName(df, independentVariable1)	 #create handles to the data rows we care about
 iv_fac <- df %>% pull(!!iv) %>% factor()
 outcome <- df %>% pull(!!dv) 
-
 
 #check normality
 cat("\n")
@@ -43,6 +43,7 @@ if(sh$p.value < 0.05){
 } else {
   message("Normality NOT satisfied according to Shapiro-Wilk")
 }
+
 
 cat("\n")
 message("--------------------------------------------------------------------------------------")
@@ -68,18 +69,10 @@ message("SDs of outcome by levels of independent variable")
 tapply(outcome, iv_fac, sd)  %>% print()
 
 
-
 cat("\n")
 message("--------------------------------------------------------------------------------------")
 message("------------------------------------Non-paramteric tests------------------------------------")
+
 message("Krushal Wallis test")
 kruskal.test(outcome ~ iv_fac) %>% suppressMessages() %>% print()
-
-cat("\n")
-message("--------------------------------------------------------------------------------------")
-message("------------------------------------post hoc tests------------------------------------")
-message("Krushal Dunn")
-posthoc.kruskal.dunn.test(outcome, iv_fac, p.adj = "bonf") %>% suppressMessages() %>% print()
-message("Krushal nemenyi")
-posthoc.kruskal.nemenyi.test(outcome, iv_fac, p.adj = "bonf") %>% suppressMessages() %>% print()
 

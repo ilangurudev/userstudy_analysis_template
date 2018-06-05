@@ -7,17 +7,15 @@ rm(list = ls())
 pacman::p_load(tidyverse, lsr, broom, PMCMR)
 
 
-datafilename <- "data/key_info.csv"	# csv file name
+datafilename <- "data/post_survey.csv"	# csv file name
 
-dv <- quo(scr30_percent)			# dependent variable
+dv <- quo(comfortable_info)			# dependent variable
 iv <- quo(mode)		# independent variable	 
 
 norm_test_threhold <- 0.05
 
 df <- suppressMessages(read_csv(datafilename))    #read the data into a data frame using the header row
 
-df <- df %>% 
-  filter(mode != 1)
 
 df <- 
   df %>% 

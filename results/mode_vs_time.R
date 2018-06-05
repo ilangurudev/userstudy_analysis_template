@@ -9,14 +9,14 @@ pacman::p_load(tidyverse, lsr, broom, PMCMR)
 
 datafilename <- "data/key_info.csv"	# csv file name
 
-dv <- quo(scr30_percent)			# dependent variable
+dv <- quo(duration_main)			# dependent variable
 iv <- quo(mode)		# independent variable	 
 
 
 
 df <- suppressMessages(read_csv(datafilename))    #read the data into a data frame using the header row
 
-df <- df %>% 
+df <- df %>%
   filter(mode != 1)
 
 df <- 
@@ -26,6 +26,7 @@ df <-
 # iv = getColumnByName(df, independentVariable1)	 #create handles to the data rows we care about
 iv_fac <- df %>% pull(!!iv) %>% factor()
 outcome <- df %>% pull(!!dv) 
+
 
 
 #check normality
@@ -43,6 +44,14 @@ if(sh$p.value < 0.05){
 } else {
   message("Normality NOT satisfied according to Shapiro-Wilk")
 }
+
+#Don't worry about ties warning\n"
+#
+
+# test for homogeneity of variance.
+# NOTE 1: bartlett test is only reliable for normal data.
+# NOTE: this stupid function will crash and break R if there are unequal numbers of results in conditions
+#bartlett.test(outcome ~ independentVariable1 , data=df)
 
 cat("\n")
 message("--------------------------------------------------------------------------------------")
@@ -69,17 +78,30 @@ tapply(outcome, iv_fac, sd)  %>% print()
 
 
 
+# ANOVA. note: missing values omitted by default for ANOVA		
 cat("\n")
 message("--------------------------------------------------------------------------------------")
-message("------------------------------------Non-paramteric tests------------------------------------")
-message("Krushal Wallis test")
-kruskal.test(outcome ~ iv_fac) %>% suppressMessages() %>% print()
+message("-----------------------------------------ANOVA----------------------------------------")
+aov.out <- aov(log(outcome) ~ iv_fac, data=df)    #do the analysis of variance
+tidy(aov.out) %>% print()
+# aov.out  		   #SHOW ANOVA MODEL
+# summary(aov.out)   #SHOW ANOVA summary table
+# don't need to worry about SS types for one-way model
+
+if(tidy(aov.out)$p.value[1] < 0.05){
+  cat("\n")
+  message("-----------Effect detected by ANOVA-----------")
+} else{
+  cat("\n")
+  message("-----------No evidence for effect detected by ANOVA-----------")
+}
 
 cat("\n")
-message("--------------------------------------------------------------------------------------")
-message("------------------------------------post hoc tests------------------------------------")
-message("Krushal Dunn")
-posthoc.kruskal.dunn.test(outcome, iv_fac, p.adj = "bonf") %>% suppressMessages() %>% print()
-message("Krushal nemenyi")
-posthoc.kruskal.nemenyi.test(outcome, iv_fac, p.adj = "bonf") %>% suppressMessages() %>% print()
+message("Analysis on the ANOVA results")
 
+# give both eta squared and partial eta squared (type 1, 2, or 3 ANOVAs are same for one-way)
+message("ETA squared")
+print(etaSquared(aov.out, type = 3, anova = TRUE))	# give both eta squared and partial eta squared
+
+message("Model tables")
+print(model.tables(aov.out,"means"), digits=4)    #report the means and the number of subjects/cell
